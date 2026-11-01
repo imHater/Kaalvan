@@ -18,7 +18,41 @@ jobs:
           cp "$F" www/index.html
       - run: npm install
       - run: npx cap add android
-      - run: sed -i 's/<activity/<activity android:screenOrientation="landscape"/' android/app/src/main/AndroidManifest.xml
+      - name: Landscape and fullscreen
+        run: |
+          sed -i 's/<activity/<activity android:screenOrientation="landscape"/' android/app/src/main/AndroidManifest.xml
+          cat > android/app/src/main/java/com/redcontroller/kaalvan/MainActivity.java <<'EOF'
+          package com.redcontroller.kaalvan;
+          import android.os.Bundle;
+          import android.view.View;
+          import com.getcapacitor.BridgeActivity;
+          public class MainActivity extends BridgeActivity {
+            @Override public void onCreate(Bundle b) { super.onCreate(b); hide(); }
+            @Override public void onWindowFocusChanged(boolean f) { super.onWindowFocusChanged(f); if (f) hide(); }
+            private void hide() {
+              getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+            }
+          }
+          EOF
+      - name: App icon
+        run: |
+          pip install pillow
+          python3 - <<'EOF'
+          import glob
+          from PIL import Image
+          fs = glob.glob('*.png')
+          if not fs:
+              print('icon nahi mila, default icon rahega')
+              raise SystemExit
+          im = Image.open(fs[0]).convert('RGBA')
+          for k, v in {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}.items():
+              p = 'android/app/src/main/res/mipmap-' + k + '/'
+              im.resize((v, v), Image.LANCZOS).save(p + 'ic_launcher.png')
+              im.resize((v, v), Image.LANCZOS).save(p + 'ic_launcher_round.png')
+              f = v * 108 // 48
+              im.resize((f, f), Image.LANCZOS).save(p + 'ic_launcher_foreground.png')
+          EOF
+          sed -i 's/#FFFFFF/#1a0a05/' android/app/src/main/res/values/ic_launcher_background.xml
       - run: npx cap sync android
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
