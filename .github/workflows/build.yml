@@ -5,11 +5,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: ls -la
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
-      - run: mkdir -p www && cp index.html www/
+      - name: Game file copy
+        run: |
+          mkdir -p www
+          F=$(ls *.html | head -1)
+          echo "Game file: $F"
+          cp "$F" www/index.html
       - run: npm install
       - run: npx cap add android
       - run: sed -i 's/<activity/<activity android:screenOrientation="landscape"/' android/app/src/main/AndroidManifest.xml
